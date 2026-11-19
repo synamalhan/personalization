@@ -10,7 +10,15 @@
       "Base",
     ],
   },
+  "packages": [
+    {
+      "kind": "local",
+      "path": "PersonalizeCore",
+    },
+  ],
   "files": [
+    { "path": ".gitignore", "target-membership": [ "Personalization/resources" ] },
+    { "path": "CLAUDE.md", "target-membership": [ "Personalization/resources" ] },
     { "kind": "folder", "path": "Personalization", "target-membership": [ "Personalization" ] },
     {
       "kind": "group",
@@ -30,6 +38,12 @@
         "compile-sources",
         "frameworks",
         "resources",
+      ],
+      "package-product-members": [
+        {
+          "product-name": "PersonalizeCore",
+          "build-phase": { "build-phase": "frameworks" },
+        },
       ],
       "build-settings": {
         "CODE_SIGN_STYLE": "Automatic",
