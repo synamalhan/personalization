@@ -1,5 +1,7 @@
 # On-device personalization
 
+![Architecture](docs/architecture.svg)
+
 An iOS app that learns new image classes from a handful of photos, entirely on the phone. A frozen Core ML
 backbone (DINOv3-small, DINOv2-small or MobileNetV3, selectable in Settings) turns each photo into a vector; a small classifier head is fit on the device;
 the app stores only those vectors (not the photos). You teach it your own objects and nothing leaves the device.
