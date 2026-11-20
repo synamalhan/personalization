@@ -16,6 +16,7 @@ struct TeachView: View {
     @State private var progress = ""
     @State private var errorMessage: String?
     @State private var summary: String?
+    @State private var lastTiming: (photos: Int, embed: Double, fit: Double)?
 
     private static let minPhotos = 3
     private static let maxPhotos = 20
@@ -26,48 +27,91 @@ struct TeachView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("For example: my mug", text: $className)
-                        .textInputAutocapitalization(.never)
-                } header: { Text("Class name") } footer: {
-                    if model.classNames.contains(trimmedName) {
-                        Text("“\(trimmedName)” already exists. These photos will be added to it. Names are case-sensitive.")
-                    }
-                }
-                Section {
-                    PhotosPicker(selection: $pickerItems, maxSelectionCount: Self.maxPhotos - capturedPhotos.count, matching: .images) {
-                        Label("Choose photos", systemImage: "photo.on.rectangle")
-                    }
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        Button { showCamera = true } label: { Label("Take a photo", systemImage: "camera") }
-                            .disabled(photoCount >= Self.maxPhotos)
-                    }
-                    Text("\(photoCount) photo\(photoCount == 1 ? "" : "s") selected (\(Self.minPhotos) to \(Self.maxPhotos) needed)")
-                        .font(.footnote).foregroundStyle(.secondary)
-                    if photoCount > 0 {
-                        Button("Clear photos", role: .destructive) { pickerItems = []; capturedPhotos = [] }
-                    }
-                } header: { Text("Photos") } footer: {
-                    Text(deletePhotos ? "Photos are deleted from memory right after they are turned into numbers."
-                                      : "Photos will be kept in the app's Documents folder (change this in Settings).")
-                }
-                Section {
-                    Button {
-                        Task { await teach() }
-                    } label: {
-                        HStack {
-                            Text("Teach")
-                            if isWorking { Spacer(); ProgressView() }
+            ScrollView {
+                VStack(spacing: 20) {
+                    ScreenHeader(title: "Teach me something", subtitle: "Pick a name, show me a few photos, and I'll remember what it looks like.", color: Theme.tomato)
+
+                    StickerCard(tint: Theme.sunflower) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("1. What is it called?", systemImage: "pencil.line").font(.headline.weight(.heavy))
+                            TextField("my mug, grandma's cat, the red bike…", text: $className)
+                                .textInputAutocapitalization(.never)
+                                .padding(12)
+                                .background(Theme.paper, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.ink, lineWidth: 2))
+                            if model.classNames.contains(trimmedName) {
+                                Text("I already know “\(trimmedName)”, so these photos will be added to it. Names are case-sensitive.")
+                                    .font(.footnote).foregroundStyle(Theme.ink.opacity(0.7))
+                            }
                         }
                     }
-                    .disabled(!canTeach)
-                    if isWorking { Text(progress).font(.footnote).foregroundStyle(.secondary) }
-                    if let summary { Text(summary).font(.footnote) }
-                    if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(.red) }
+
+                    StickerCard(tint: Theme.sky) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Label("2. Show me the photos", systemImage: "photo.stack").font(.headline.weight(.heavy))
+                            PhotosPicker(selection: $pickerItems, maxSelectionCount: Self.maxPhotos - capturedPhotos.count, matching: .images) {
+                                Label("Choose from my photos", systemImage: "photo.on.rectangle.angled")
+                            }
+                            .buttonStyle(StickerButtonStyle(color: Theme.sky))
+                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                Button { showCamera = true } label: { Label("Take a photo now", systemImage: "camera.fill") }
+                                    .buttonStyle(StickerButtonStyle(color: Theme.bubblegum))
+                                    .disabled(photoCount >= Self.maxPhotos)
+                            }
+                            photoDots
+                            if photoCount > 0 {
+                                Button("Start over with the photos", role: .destructive) { pickerItems = []; capturedPhotos = [] }
+                                    .font(.footnote.weight(.semibold))
+                            }
+                        }
+                    }
+
+                    VStack(spacing: 14) {
+                        Button { Task { await teach() } } label: {
+                            HStack(spacing: 10) {
+                                if isWorking { ProgressView().tint(Theme.onAccent) }
+                                Text(isWorking ? "Learning…" : "Teach it!")
+                            }
+                        }
+                        .buttonStyle(StickerButtonStyle(color: Theme.tomato))
+                        .disabled(!canTeach)
+                        if !canTeach && !isWorking { Text(helperText).font(.footnote).foregroundStyle(Theme.ink.opacity(0.65)) }
+                        if isWorking { Text(progress).font(.footnote.weight(.semibold)).foregroundStyle(Theme.ink.opacity(0.75)) }
+                    }
+
+                    if let summary { resultCard(summary) }
+                    if let errorMessage {
+                        StickerCard(tint: Theme.tomato) {
+                            Label { Text(errorMessage).font(.callout) } icon: { Image(systemName: "exclamationmark.bubble.fill").foregroundStyle(Theme.tomato) }
+                        }
+                    }
+
+                    VStack(spacing: 14) {
+                        Explainer(title: "What happens to my photos?", color: Theme.mint, icon: "lock.fill") {
+                            Text("Each photo goes through a small image model that runs on this phone. It turns the picture into a list of about a thousand numbers (called an embedding) that describes what's in it.")
+                            Text(deletePhotos ? "Right after that, the photo is thrown away. Only the numbers are kept, so nothing can be turned back into your picture."
+                                              : "You've chosen to keep photos, so a copy is also saved inside this app's own folder. You can change this in Settings.")
+                            Text("Nothing is ever uploaded. The app has no internet code at all.")
+                        }
+                        Explainer(title: "Why 3 to 20 photos?", color: Theme.sky, icon: "number.circle.fill") {
+                            Text("One photo can be a fluke: a weird angle, bad light. Three or more lets me average out the quirks and find what stays the same.")
+                            Text("After about 10 photos you mostly get diminishing returns. In my tests on flowers, going from 1 to 5 photos helped a lot, while 10 to 20 changed little. Photos from different angles and lighting beat twenty near-identical shots.")
+                        }
+                        Explainer(title: "What is an “embedding”?", color: Theme.bubblegum, icon: "point.3.connected.trianglepath.dotted") {
+                            Text("Think of it as coordinates. Similar things land close together: two photos of your mug end up near each other, and a photo of a banana ends up far away.")
+                            Text("Teaching just stores those coordinates under your name. To recognize something new, I check which taught group it's closest to.")
+                        }
+                        Explainer(title: "What does “Teach it!” actually do?", color: Theme.grape, icon: "gearshape.2.fill") {
+                            Text("It adds your new numbers to everything I already know, then re-tunes the classifier from all of them. That re-tuning is why old things stay recognized when you add new ones.")
+                            Text("The timings it shows afterwards are real: how long the photos took to read and how long the re-tune took.")
+                        }
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
             }
-            .navigationTitle("Teach")
+            .background(ScreenBackground(color: Theme.tomato))
+            .toolbar(.hidden, for: .navigationBar)
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in
                     if let image { capturedPhotos.append(image) }
@@ -77,11 +121,55 @@ struct TeachView: View {
         }
     }
 
+    /// Twenty dots: the first three have a thicker outline (the minimum), and they fill in as photos are added.
+    private var photoDots: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 3) {
+                ForEach(0..<Self.maxPhotos, id: \.self) { i in
+                    Circle()
+                        .fill(i < photoCount ? Theme.tomato : Color.clear)
+                        .overlay(Circle().stroke(Theme.ink.opacity(i < Self.minPhotos ? 1 : 0.3), lineWidth: i < Self.minPhotos ? 2 : 1.5))
+                        .aspectRatio(1, contentMode: .fit)
+                }
+            }
+            Text(photoCount == 0 ? "No photos yet. I need at least \(Self.minPhotos)." :
+                    photoCount < Self.minPhotos ? "\(photoCount) so far. \(Self.minPhotos - photoCount) more to go." :
+                    "\(photoCount) photo\(photoCount == 1 ? "" : "s") ready.")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Theme.ink.opacity(0.75))
+        }
+        .animation(.snappy, value: photoCount)
+    }
+
+    private var helperText: String {
+        if trimmedName.isEmpty { return "Give it a name first." }
+        if photoCount < Self.minPhotos { return "Add at least \(Self.minPhotos) photos." }
+        if photoCount > Self.maxPhotos { return "That's too many, keep it to \(Self.maxPhotos)." }
+        return ""
+    }
+
+    private func resultCard(_ text: String) -> some View {
+        StickerCard(tint: Theme.mint, tilt: -1) {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Got it!", systemImage: "party.popper.fill").font(.title3.weight(.heavy))
+                Text(text).font(.callout)
+                if let timing = lastTiming {
+                    HStack(spacing: 10) {
+                        StatChip(label: "photos", value: "\(timing.photos)", color: Theme.sunflower)
+                        StatChip(label: "reading", value: String(format: "%.2fs", timing.embed), color: Theme.sky)
+                        StatChip(label: "re-tune", value: String(format: "%.3fs", timing.fit), color: Theme.bubblegum)
+                    }
+                }
+            }
+        }
+    }
+
     private func teach() async {
         guard canTeach else { return }
         isWorking = true
         errorMessage = nil
         summary = nil
+        lastTiming = nil
         defer { isWorking = false }
         let name = trimmedName
         let keep = !deletePhotos
@@ -127,10 +215,9 @@ struct TeachView: View {
         pickerItems = []
         capturedPhotos = []
         className = ""
-        let skipped = unreadable > 0 ? " (\(unreadable) unreadable photo\(unreadable == 1 ? "" : "s") skipped)" : ""
-        summary = String(format: "Learned “%@” from %d photos in %.2f s (embedding %.2f s, refit %.3f s)%@.",
-                         name, vectors.count, embedSeconds + model.learner.lastFitSeconds, embedSeconds,
-                         model.learner.lastFitSeconds, skipped)
+        let skipped = unreadable > 0 ? " I had to skip \(unreadable) photo\(unreadable == 1 ? "" : "s") I couldn't read." : ""
+        summary = "I now know “\(name)”, learned from \(vectors.count) photos.\(skipped)"
+        lastTiming = (vectors.count, embedSeconds, model.learner.lastFitSeconds)
     }
 
     private static func keepPhoto(_ data: Data, className: String) {

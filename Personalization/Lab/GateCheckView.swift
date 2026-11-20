@@ -19,6 +19,14 @@ struct GateCheckView: View {
     var body: some View {
         Form {
             Section {
+                Explainer(title: "What is this checking?", color: Theme.mint) {
+                    Text("Twenty fixed photos are bundled in the app. I turn each into numbers on this phone and export them. A script on your laptop turns the same photos into numbers with Python and compares the two lists.")
+                    Text("A cosine similarity near 1 means the phone and laptop agree. In the simulator the average was close to 0.995, which is good but not perfect. The likely reason is that the phone and the laptop resize images with slightly different math. A real iPhone is the real test.")
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            }
+            Section {
                 Button("Embed the 20 bundled images") { Task { await run() } }
                     .disabled(isRunning)
                 Text(status).font(.footnote)
@@ -29,6 +37,8 @@ struct GateCheckView: View {
                 ShareLink(item: url) { Label(url.lastPathComponent, systemImage: "square.and.arrow.up") }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(ScreenBackground(color: Theme.grape))
         .navigationTitle("Gate check")
     }
 

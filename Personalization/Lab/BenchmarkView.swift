@@ -17,6 +17,14 @@ struct BenchmarkView: View {
     var body: some View {
         Form {
             Section {
+                Explainer(title: "How is it timed?", color: Theme.sunflower) {
+                    Text("Each measurement runs ten warm-up rounds that are thrown away, then a hundred timed rounds. I report the median and the 95th percentile, so one slow hiccup doesn't hide.")
+                    Text("For honest numbers, use a real iPhone with a Release build, start with the phone cool, and run it three times. The exact steps are in results/measurement_protocol.md in the project.")
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            }
+            Section {
                 Button("Run benchmark") { Task { await run() } }.disabled(isRunning)
                 if isRunning { ProgressView(); Text(progress).font(.footnote) }
             } footer: {
@@ -31,6 +39,8 @@ struct BenchmarkView: View {
                 ShareLink(item: csvURL) { Label("Export raw timings (CSV)", systemImage: "square.and.arrow.up") }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(ScreenBackground(color: Theme.grape))
         .navigationTitle("Benchmark")
     }
 

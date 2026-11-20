@@ -19,6 +19,14 @@ struct RealPhotoView: View {
 
     var body: some View {
         Form {
+            Section {
+                Explainer(title: "What is this for?", color: Theme.sky) {
+                    Text("The study's last question is whether the app still works on your own photos taken on different days and in different light. Pick a class name and a day label such as day1, choose photos, and I'll store only their numbers.")
+                    Text("Your photos are never saved or exported. On the laptop, a script trains on some days and tests on the others.")
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            }
             Section("Import") {
                 TextField("Class (for example: mug)", text: $className).textInputAutocapitalization(.never)
                 TextField("Day label (for example: day1)", text: $day).textInputAutocapitalization(.never)
@@ -40,6 +48,8 @@ struct RealPhotoView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(ScreenBackground(color: Theme.grape))
         .navigationTitle("Real-photo test")
     }
 

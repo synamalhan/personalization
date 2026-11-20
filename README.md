@@ -9,7 +9,14 @@ the app stores only those vectors (not the photos). You teach it your own object
 > datasets, and the Oxford-IIIT Pets dataset has **not** been run. Nothing has been measured on a real iPhone yet.
 > The phone-vs-laptop gate check has only been run in the iOS Simulator (see Limitations). Treat the numbers as a preview.
 
-![Screenshot placeholder: teaching a class](docs/screenshot-teach.png)
+<p align="center">
+  <img src="docs/screenshots/teach.png" width="250" alt="Teach screen">
+  <img src="docs/screenshots/library.png" width="250" alt="Library with sample classes">
+  <img src="docs/screenshots/settings.png" width="250" alt="Settings">
+</p>
+
+*iOS Simulator screenshots. The Library shows made-up sample classes.* Every screen has collapsible
+"how does this work?" cards with the longer explanations.
 
 ## Architecture
 
