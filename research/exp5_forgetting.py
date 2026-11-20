@@ -1,12 +1,14 @@
 """Experiment 5: does adding classes break old ones?
 
 Classes are added one at a time. After each addition we measure top-1 accuracy on held-out
-query images of all EARLIER classes, with replay (head refit on all stored support embeddings)
-and without replay (head fit only on the newest class). Raw per-trial rows go to
-results/exp5_forgetting.csv.
-
-Note: a head fit on one class can only ever predict that class, so without replay accuracy on
-earlier classes is 0 by construction for both heads.
+query images of all EARLIER classes, in three modes:
+  replay       head refit on all stored support embeddings (what the app does)
+  newest_only  head fit only on the newest class (the Learner's replay=false). A head fit on one class
+               can only predict that class, so accuracy on earlier classes is 0 by construction.
+  sequential   no replay but a fair test: keep the old head and add the new class using only the new
+               class's examples (Logistic: gradient steps on new data, which forgets; nearest class mean:
+               the old means are kept, so it cannot forget).
+Raw per-trial rows go to results/exp5_forgetting.csv.
 """
 import argparse
 import csv
@@ -25,18 +27,27 @@ def run_trial(X, y, seed, n_classes, k_shot, n_query):
     support_idx, query_idx = split_support_query(rng, y, classes, k_shot, n_query)
     rows = []
     for head_name, head_cls in HEADS.items():
-        for replay in (True, False):
-            for t in range(2, n_classes + 1):
+        for mode in ("replay", "newest_only", "sequential"):
+            head = None
+            for t in range(1, n_classes + 1):
                 taught = classes[:t]
-                fit_on = taught if replay else taught[-1:]
-                head = head_cls().fit({c: X[support_idx[c]] for c in fit_on})
+                if mode == "replay":
+                    head = head_cls().fit({c: X[support_idx[c]] for c in taught})
+                elif mode == "newest_only":
+                    head = head_cls().fit({taught[-1]: X[support_idx[taught[-1]]]})
+                elif t == 1:
+                    head = head_cls().fit({taught[0]: X[support_idx[taught[0]]]})
+                else:
+                    head = head.add_class(taught[-1], X[support_idx[taught[-1]]])
+                if t < 2:
+                    continue
 
                 def accuracy(cs):
                     qi = np.concatenate([query_idx[c] for c in cs])
                     pred = head.labels[head.predict_proba(X[qi]).argmax(axis=1)]
                     return float((pred == y[qi]).mean())
 
-                rows.append(dict(head=head_name, replay=int(replay), seed=seed, n_classes=t,
+                rows.append(dict(head=head_name, mode=mode, seed=seed, n_classes=t,
                                  acc_old=accuracy(taught[:-1]), acc_new=accuracy(taught[-1:]),
                                  acc_all=accuracy(taught)))
     return rows
@@ -77,22 +88,23 @@ def main():
 
     # Summary: accuracy on earlier classes at the last step (all classes added).
     last = args.n_classes
+    modes = ("replay", "newest_only", "sequential")
     print(f"Top-1 accuracy on EARLIER classes after adding class {last} (mean [95% CI], "
           f"{args.seeds} seeds, k={args.k_shot})")
-    print(f"{'dataset':<11}{'backbone':<13}{'head':<20}{'replay':<22}{'no replay':<22}")
+    print(f"{'dataset':<11}{'backbone':<13}{'head':<20}" + "".join(f"{m:<22}" for m in modes))
     for ds in args.datasets:
         for bb in args.backbones:
             for head in HEADS:
                 cells = []
-                for replay in (1, 0):
+                for mode in modes:
                     v = [r["acc_old"] for r in all_rows if r["dataset"] == ds and r["backbone"] == bb
-                         and r["head"] == head and r["replay"] == replay and r["n_classes"] == last]
+                         and r["head"] == head and r["mode"] == mode and r["n_classes"] == last]
                     if not v:
                         break
                     m, lo, hi = mean_ci(v)
                     cells.append(f"{m:.3f} [{lo:.3f},{hi:.3f}]")
-                if cells:
-                    print(f"{ds:<11}{bb:<13}{head:<20}{cells[0]:<22}{cells[1]:<22}")
+                if len(cells) == len(modes):
+                    print(f"{ds:<11}{bb:<13}{head:<20}" + "".join(f"{c:<22}" for c in cells))
 
 
 if __name__ == "__main__":

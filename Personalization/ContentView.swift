@@ -1,17 +1,17 @@
 import SwiftUI
-import Playgrounds
 
+/// The tab bar. Each tab lives in its own folder.
 struct ContentView: View {
     var body: some View {
-        Text("Hello, world!")
-            .padding()
+        TabView {
+            Tab("Teach", systemImage: "plus.circle") { TeachView() }
+            Tab("Recognize", systemImage: "camera.viewfinder") { RecognizeView() }
+            Tab("Library", systemImage: "books.vertical") { LibraryView() }
+            Tab("Settings", systemImage: "gearshape") { SettingsView() }
+        }
     }
 }
 
 #Preview {
-    ContentView()
-}
-
-#Playground {
-    _ = 1 + 2
+    ContentView().environment(AppModel(storeURL: FileManager.default.temporaryDirectory.appendingPathComponent("preview.json")))
 }

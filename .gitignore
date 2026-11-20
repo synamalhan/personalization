@@ -1,6 +1,9 @@
-CLAUDE.md
-/Personalization/docs/PLAN.md
-
 research/data/
 __pycache__/
 results/*.npz
+research/.venv/
+.pytest_cache/
+models/.venv/
+models/*.mlpackage
+Personalization/Resources/*.mlpackage
+Personalization/Resources/GateImages/

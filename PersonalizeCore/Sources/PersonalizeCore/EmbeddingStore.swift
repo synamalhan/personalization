@@ -1,9 +1,25 @@
 import Foundation
 
 /// Errors thrown when vectors can't be added to the store.
-public enum EmbeddingStoreError: Error, Equatable {
+/// Conforming to `LocalizedError` gives each case a human-readable message for `error.localizedDescription`.
+public enum EmbeddingStoreError: Error, Equatable, LocalizedError {
     /// A vector was empty, or its length differs from vectors already stored.
     case dimensionMismatch(expected: Int, got: Int)
+    /// A vector contains NaN or infinity (JSON cannot store those, so saving would fail).
+    case nonFiniteValue
+    /// A vector is all zeros, so it has no direction and could never be matched.
+    case zeroVector
+
+    public var errorDescription: String? {
+        switch self {
+        case .dimensionMismatch:
+            "These embeddings have a different size than the ones already stored. They probably came from a different model."
+        case .nonFiniteValue:
+            "A photo produced invalid numbers (NaN or infinity), so it was not stored."
+        case .zeroVector:
+            "A photo produced an empty embedding (all zeros), so it was not stored."
+        }
+    }
 }
 
 /// Holds the embedding vectors taught for each class, keyed by class name.
@@ -34,11 +50,15 @@ public struct EmbeddingStore: Codable, Equatable, Sendable {
 
     /// Adds vectors to a class, creating it if needed.
     /// `mutating` marks a method that changes the struct itself.
-    /// Nothing is added if any vector has the wrong length.
+    /// Nothing is added if any vector has the wrong length, contains NaN/infinity, or is all zeros.
     public mutating func add(className: String, vectors: [[Float]]) throws {
         let expected = dimension ?? vectors.first?.count ?? 0
-        for vector in vectors where vector.isEmpty || vector.count != expected {
-            throw EmbeddingStoreError.dimensionMismatch(expected: expected, got: vector.count)
+        for vector in vectors {
+            if vector.isEmpty || vector.count != expected {
+                throw EmbeddingStoreError.dimensionMismatch(expected: expected, got: vector.count)
+            }
+            if !vector.allSatisfy(\.isFinite) { throw EmbeddingStoreError.nonFiniteValue }
+            if vector.allSatisfy({ $0 == 0 }) { throw EmbeddingStoreError.zeroVector }
         }
         guard !vectors.isEmpty else { return }
         embeddings[className, default: []].append(contentsOf: vectors)

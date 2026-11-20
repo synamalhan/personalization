@@ -1,0 +1,30 @@
+{
+  "backbone": "mobilenetv3",
+  "coremltools": "9.0",
+  "torch": "2.7.0",
+  "n_images": 300,
+  "models": {
+    "fp16": {
+      "mean_cosine": 0.9999061226844788,
+      "min_cosine": 0.9997707009315491,
+      "max_abs_diff": 0.07136130332946777,
+      "nan": 0
+    },
+    "int8": {
+      "mean_cosine": 0.9224119186401367,
+      "min_cosine": 0.830266535282135,
+      "max_abs_diff": 2.8886332511901855,
+      "nan": 0
+    }
+  },
+  "expected_input": {
+    "name": "image",
+    "width": 224,
+    "height": 224,
+    "color_space": "RGB",
+    "pixel_range": "0-255 (no scaling by the caller)",
+    "normalization": "inside the model: (pixel/255 - mean) / std with ImageNet mean/std",
+    "caller_must": "resize shorter side to 256 (bilinear), center crop 224x224, RGB order",
+    "output": "embedding"
+  }
+}

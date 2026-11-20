@@ -37,6 +37,14 @@ class NearestClassMean:
     def cosine(self, X: np.ndarray) -> np.ndarray:
         return l2_normalize(X) @ self.means.T
 
+    def add_class(self, label, X: np.ndarray) -> "NearestClassMean":
+        """Sequential learning without replay: keep the old class means, add one more.
+        A class mean depends only on its own examples, so old classes cannot be forgotten."""
+        new = NearestClassMean(self.temperature)
+        new.labels = np.append(self.labels, label)
+        new.means = np.vstack([self.means, normalized_mean(X)[None].astype(np.float32)])
+        return new
+
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         return softmax(self.cosine(X) / self.temperature)
 
@@ -66,6 +74,25 @@ class Logistic:
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         return softmax(l2_normalize(X) @ self.W.T + self.b)
+
+    def add_class(self, label, X: np.ndarray) -> "Logistic":
+        """Sequential learning without replay: keep the old weights, add a zero row for the new class,
+        then run the same number of gradient steps on the NEW class's examples only. Nothing in the loss
+        keeps the old classes up, so their logits are pushed down: this is catastrophic forgetting."""
+        new = Logistic(self.steps, self.lr, self.reg)
+        new.labels = np.append(self.labels, label)
+        d = self.W.shape[1]
+        new.W = np.vstack([self.W, np.zeros((1, d), dtype=np.float32)])
+        new.b = np.append(self.b, np.float32(0))
+        Xn = l2_normalize(X).astype(np.float32)
+        k, n = len(new.labels), len(Xn)
+        onehot = np.zeros((n, k), dtype=np.float32)
+        onehot[:, -1] = 1
+        for _ in range(new.steps):
+            err = softmax(Xn @ new.W.T + new.b) - onehot
+            new.b -= new.lr * err.sum(axis=0) / n
+            new.W -= new.lr * (err.T @ Xn / n + new.reg * new.W)
+        return new
 
 
 def suggested_threshold(support: dict, std_devs: float = config.THRESHOLD_STD_DEVS):

@@ -354,3 +354,45 @@ private func makeSeparatedStore() throws -> EmbeddingStore {
         if case .known(let name, _) = learner.predict([0, 5, 0]) { #expect(name == "b") } else { Issue.record("unknown") }
     }
 }
+
+@Suite struct EmbeddingValidationTests {
+    @Test func rejectsNaNAndInfinity() {
+        var store = EmbeddingStore()
+        #expect(throws: EmbeddingStoreError.nonFiniteValue) { try store.add(className: "a", vectors: [[1, .nan]]) }
+        #expect(throws: EmbeddingStoreError.nonFiniteValue) { try store.add(className: "a", vectors: [[1, .infinity]]) }
+        #expect(store.classNames.isEmpty)
+    }
+
+    @Test func rejectsAllZeroVector() {
+        var store = EmbeddingStore()
+        #expect(throws: EmbeddingStoreError.zeroVector) { try store.add(className: "a", vectors: [[0, 0, 0]]) }
+        #expect(store.classNames.isEmpty)
+    }
+
+    @Test func oneBadVectorAddsNothing() throws {
+        var store = EmbeddingStore()
+        #expect(throws: EmbeddingStoreError.zeroVector) { try store.add(className: "a", vectors: [[1, 0], [0, 0]]) }
+        #expect(store.count(for: "a") == 0)
+    }
+
+    @Test func errorsHaveReadableMessages() {
+        #expect(EmbeddingStoreError.zeroVector.localizedDescription.contains("all zeros"))
+        #expect(EmbeddingStoreError.nonFiniteValue.localizedDescription.contains("invalid"))
+        #expect(EmbeddingStoreError.dimensionMismatch(expected: 2, got: 3).localizedDescription.contains("different size"))
+    }
+
+    @Test func learnerSurfacesTheError() {
+        var learner = Learner()
+        #expect(throws: EmbeddingStoreError.zeroVector) { try learner.teach(className: "a", embeddings: [[0, 0]]) }
+        #expect(learner.classNames.isEmpty)
+        #expect(learner.predict([1, 0]) == .unknown(bestGuess: nil))
+    }
+
+    @Test func classNamesAreCaseSensitiveAndExactlyAsGiven() throws {
+        // Documented behavior: the store does not merge "Mug" and "mug"; the app trims whitespace before calling.
+        var store = EmbeddingStore()
+        try store.add(className: "Mug", vectors: [[1, 0]])
+        try store.add(className: "mug", vectors: [[0, 1]])
+        #expect(store.classNames == ["Mug", "mug"])
+    }
+}

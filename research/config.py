@@ -48,3 +48,22 @@ LOGISTIC_REG = 1e-4       # LogisticHead.init(regularization:)
 NCM_TEMPERATURE = 0.1     # NearestClassMeanHead(temperature:)
 THRESHOLD_STD_DEVS = 2.0  # NearestClassMeanHead.suggestedThreshold(stdDevs:)
 ECE_BINS = 15
+
+# --- Parity fixture for the Swift tests --------------------------------------
+FIXTURE_SEED = 0
+FIXTURE_N_CLASSES = 5
+FIXTURE_K_SHOT = 5
+FIXTURE_N_QUERY_TAUGHT = 3      # queries per taught class (15 total)
+FIXTURE_N_QUERY_OTHER = 5       # queries from classes that were not taught
+FIXTURE_PATH = "PersonalizeCore/Tests/PersonalizeCoreTests/Fixtures/parity.json"
+
+# --- Experiments 1 and 2 -----------------------------------------------------
+SHOTS = (1, 3, 5, 10, 20)  # support examples per class
+N_EPISODES = 200           # random episodes per (dataset, backbone, k)
+EXP1_N_WAY = 5             # classes per episode
+EXP1_N_QUERY = 15          # query examples per class
+
+# --- Gate check (phone vs laptop) --------------------------------------------
+GATE_N_CLASSES = 5
+GATE_PER_CLASS = 4         # 20 images in total
+GATE_DIR = "Personalization/Resources/GateImages"   # bundled into the app, git-ignored

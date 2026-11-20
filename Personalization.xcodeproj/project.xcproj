@@ -18,7 +18,6 @@
   ],
   "files": [
     { "path": ".gitignore", "target-membership": [ "Personalization/resources" ] },
-    { "path": "CLAUDE.md", "target-membership": [ "Personalization/resources" ] },
     { "kind": "folder", "path": "Personalization", "target-membership": [ "Personalization" ] },
     {
       "kind": "group",
@@ -52,6 +51,7 @@
         "ENABLE_PREVIEWS": "YES",
         "ENABLE_USER_SELECTED_FILES": "readonly",
         "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_KEY_NSCameraUsageDescription": "The camera is used to recognize things you have taught the app. Photos are processed on this device and never leave it.",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]": "YES",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]": "YES",

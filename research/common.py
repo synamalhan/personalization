@@ -61,3 +61,17 @@ def ece(confidence, correct, n_bins=config.ECE_BINS):
         if m.any():
             total += m.mean() * abs(correct[m].mean() - confidence[m].mean())
     return float(total)
+
+
+def macro_f1(y_true, y_pred, labels):
+    """Unweighted mean of per-class F1 over `labels` (a class with no true or predicted
+    examples contributes 0)."""
+    y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
+    scores = []
+    for c in labels:
+        tp = float(((y_pred == c) & (y_true == c)).sum())
+        fp = float(((y_pred == c) & (y_true != c)).sum())
+        fn = float(((y_pred != c) & (y_true == c)).sum())
+        denom = 2 * tp + fp + fn
+        scores.append(2 * tp / denom if denom else 0.0)
+    return float(np.mean(scores))

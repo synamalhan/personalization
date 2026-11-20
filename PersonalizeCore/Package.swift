@@ -20,7 +20,8 @@ let package = Package(
         ),
         .testTarget(
             name: "PersonalizeCoreTests",
-            dependencies: ["PersonalizeCore"]
+            dependencies: ["PersonalizeCore"],
+            resources: [.copy("Fixtures")]
         ),
     ],
     swiftLanguageModes: [.v6]
