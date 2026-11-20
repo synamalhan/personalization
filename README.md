@@ -1,13 +1,14 @@
 # On-device personalization
 
 An iOS app that learns new image classes from a handful of photos, entirely on the phone. A frozen Core ML
-backbone turns each photo into a vector; a small classifier head is fit on the device;
+backbone (DINOv3-small, DINOv2-small or MobileNetV3, selectable in Settings) turns each photo into a vector; a small classifier head is fit on the device;
 the app stores only those vectors (not the photos). You teach it your own objects and nothing leaves the device.
 
 > **Status.** The Swift package, both heads, the Python experiments and the app are built. The experiment
 > numbers below come from a **2000-image random subset of Flowers102** (about 20 images per class), not the full
 > datasets, and the Oxford-IIIT Pets dataset has **not** been run. Nothing has been measured on a real iPhone yet.
-> The phone-vs-laptop gate check has only been run in the iOS Simulator (see Limitations). Treat the numbers as a preview.
+> The phone-vs-laptop gate check has been run once on a real iPhone, for MobileNetV3 only (see Limitations). Timing
+> on a phone in Release has not been measured. Treat the numbers as a preview.
 
 <p align="center">
   <img src="docs/screenshots/teach.png" width="250" alt="Teach screen">
@@ -56,6 +57,7 @@ All numbers are from `results/summary.md` (Flowers102 subset, 95% CIs, 100 episo
 | Claim | Number | Experiment |
 | --- | --- | --- |
 | DINOv2-small needs very few photos: 1 photo per class, 5-way | accuracy 0.996 [0.992, 0.999] (nearest class mean) | Exp 1 |
+| DINOv3-small is about as good as DINOv2-small on these flowers | accuracy 0.992 [0.988, 0.996] at 1 photo (nearest class mean); within noise of DINOv2 at 5 photos | Exp 1, Exp 2 |
 | MobileNetV3 improves strongly from 1 to 5 photos per class (nearest class mean) | 0.834 [0.811, 0.857] at k=1, 0.952 [0.942, 0.963] at k=5 | Exp 1 |
 | Logistic is slightly better than nearest class mean for MobileNetV3 at k=5 | +0.009 [+0.004, +0.014] accuracy | Exp 2 |
 | For DINOv2 the two heads are indistinguishable at k=5 | +0.000 [-0.001, +0.002] accuracy | Exp 2 |
@@ -63,17 +65,21 @@ All numbers are from `results/summary.md` (Flowers102 subset, 95% CIs, 100 episo
 | Without replay, a logistic head forgets almost everything (sequential, 10 classes) | MobileNetV3 0.000 [0.000, 0.000]; DINOv2 0.049 [0.040, 0.059] (replay: 0.935 and 0.999) | Exp 5 |
 | Nearest class mean does not forget, because class means never change | 0.924 [0.916, 0.933], identical to replay (MobileNetV3) | Exp 5 |
 | Unknown detection works well with DINOv2 | AUROC 0.994 [0.992, 0.995] (nearest class mean) | Exp 6 |
+| DINOv3 is similarly strong | AUROC 0.991 [0.988, 0.994] (nearest class mean) | Exp 6 |
 | ... and clearly worse with MobileNetV3 | AUROC 0.885 [0.876, 0.895] (nearest class mean) | Exp 6 |
 | The PersonalizeCore threshold rule rejects unseen classes with DINOv2 | 0.984 [0.978, 0.990] rejected, 0.956 [0.949, 0.962] taught accepted | Exp 6 |
+| ... and with DINOv3 | 0.979 [0.970, 0.988] rejected, 0.960 [0.953, 0.967] taught accepted | Exp 6 |
 | ... but not with MobileNetV3 | 0.277 [0.252, 0.302] rejected, 0.976 [0.972, 0.981] taught accepted | Exp 6 |
-| fp16 conversion is essentially lossless | mean cosine 0.9999 (both backbones) | Conversion check |
-| int8 hurts MobileNetV3 much more than DINOv2 | mean cosine 0.9224 (worst image 0.8303) vs 0.9992 | Conversion check |
-| Simulator embeddings track the Python ones closely but not perfectly (MobileNetV3, 20 images) | mean cosine 0.9947, worst image 0.9855; same predicted class 100% for both heads | Gate check (simulator, CPU-only) |
+| fp16 conversion is essentially lossless | mean cosine 0.9999 (MobileNetV3 and DINOv2); DINOv3 reaches 1.0000 only with its layer-norms kept in float32 (see note below) | Conversion check |
+| int8 hurts MobileNetV3 much more than the DINO models | mean cosine 0.9224 (worst image 0.8303) vs 0.9992 (DINOv2) and 0.9995 (DINOv3) | Conversion check |
+| The real iPhone's embeddings track the Python ones closely but not perfectly (MobileNetV3, 20 images) | mean cosine 0.9945, worst image 0.9843; same predicted class 100% for both heads | Gate check (real iPhone, Debug) |
 
 Worst cases kept in: MobileNetV3 with one photo per class is the weakest cell in Exp 1 (0.834). The "newest class
 only" arm in Exp 5 (the Learner's `replay = false`) scores 0.000 **by construction** (a head fit on one class can only
 predict that class); the sequential arm is the fair forgetting test. MobileNetV3 nearest-class-mean confidence is
 badly calibrated (ECE 0.507 [0.497, 0.517]); the softmax temperature (0.1) was not tuned.
+
+**DINOv3 conversion note.** Converting DINOv3 to float16 naively breaks it (cosine 0.69 against PyTorch on noise images, while float32 Core ML matches exactly). Keeping only the layer-norm operations in float32 and the rest in float16 fixes it; on 300 real images the result is the 1.0000 (fp16) and 0.9995 (int8) mean cosine in `results/summary.md`.
 
 ## On-device measurement protocol and device
 
@@ -89,10 +95,10 @@ only timing seen so far was a Debug build in the iOS Simulator and is not report
 - **Subset only.** Numbers come from 2000 Flowers102 images; Pets and the full datasets are not run. At k=20 few
   classes are eligible in the subset, so those intervals are optimistic.
 - **One device (planned).** Nothing is measured on hardware yet, and the plan covers one phone and one OS version.
-- **Gate check is simulator-only.** With default compute units the iOS Simulator returned all-zero embeddings from the
-  fp16 Core ML model, so the app runs it on the CPU there (`#if targetEnvironment(simulator)`). With that, 20 bundled
-  images give mean cosine 0.9947 against the Python embeddings (worst image 0.9855), below the 0.999 target; the
-  most likely cause is the resize method. It has **not** been run on a real iPhone (see `research/compare_device.py`).
+- **Gate check done once, for MobileNetV3 only.** On a real iPhone, 20 bundled images give mean cosine 0.9945 against
+  the Python embeddings (worst image 0.9843), below the 0.999 target; the likely cause is the resize method (the simulator
+  gave 0.9947). The iOS Simulator returned all-zero embeddings from the fp16 model with default compute units, so the
+  app runs it on the CPU there only. The DINO models have not had a gate check yet (`research/compare_device.py`).
 - **Backbone vs preprocessing parity.** Python resizes with Pillow (bilinear, antialiased) and the app uses
   Core Graphics; small differences are expected and are exactly what the gate check measures.
 - **Threshold rule.** The app's threshold applies to the head's top probability, while the offline rule is on
@@ -108,8 +114,9 @@ cd PersonalizeCore && swift test                                  # Swift unit a
 ```
 
 The first run downloads both datasets and the model weights (large; the Oxford server can be slow). Core ML conversion
-(`models/convert.py`, `models/check_conversion.py`) uses a separate Python 3.11 environment with `torch==2.7.0`
-and `coremltools` 9.0, because coremltools 9.0 has no native modules for Python 3.14.
+(`models/convert.py`, `models/check_conversion.py`) uses a separate Python 3.11 environment with `torch==2.7.0`,
+`coremltools` 9.0 and `transformers`, because coremltools 9.0 has no native modules for Python 3.14. DINOv3 is a gated
+model: accept Meta's terms on its Hugging Face page and log in (`huggingface-cli login`) before extracting or converting it.
 
 ## Privacy
 
@@ -131,6 +138,7 @@ and `coremltools` 9.0, because coremltools 9.0 has no native modules for Python 
 | Item | License | Status |
 | --- | --- | --- |
 | DINOv2 code and weights | Apache 2.0 (stated in the facebookresearch/dinov2 README) | Checked |
+| DINOv3 weights | Meta's "DINOv3 License" (not Apache). Commercial use is not excluded; redistributing the weights or derivatives requires including the agreement and prominently displaying "Built with DINOv3"; military and weapons uses are barred. Gated on Hugging Face. | Summary read from Meta's license page; read the full text before shipping. The app shows "Built with DINOv3" in Settings, and the converted model is not in this repo |
 | torchvision code | BSD 3-Clause | Checked; the license text says nothing about pretrained weights |
 | MobileNetV3-Large `IMAGENET1K_V1` weights | Trained on ImageNet; no separate weight license found | **Not verified.** Check ImageNet terms (believed to restrict use to non-commercial research) before publishing or shipping |
 | Oxford Flowers 102 | | **Not verified** |

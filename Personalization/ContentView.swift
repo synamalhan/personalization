@@ -28,5 +28,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView().environment(AppModel(storeURL: FileManager.default.temporaryDirectory.appendingPathComponent("preview.json")))
+    ContentView().environment(AppModel(directory: FileManager.default.temporaryDirectory))
 }

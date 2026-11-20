@@ -21,8 +21,11 @@ MOBILENET_WEIGHTS = "IMAGENET1K_V1"
 # 224 is divisible by the patch size 14, so no padding is needed.
 DINOV2_HUB_REPO = "facebookresearch/dinov2"
 DINOV2_HUB_MODEL = "dinov2_vits14"
+# DINOv3-small (ViT-S/16, distilled, LVD-1689M) from Hugging Face. Gated under Meta's "DINOv3 License"
+# (not Apache): accept the terms on the model page and log in with `huggingface-cli login` first.
+DINOV3_HF_MODEL = "facebook/dinov3-vits16-pretrain-lvd1689m"
 
-BACKBONES = ("mobilenetv3", "dinov2")      # names used in output filenames
+BACKBONES = ("mobilenetv3", "dinov2", "dinov3")      # names used in output filenames
 DATASETS = ("flowers102", "pets")          # names used in output filenames
 
 # --- Runtime -----------------------------------------------------------------

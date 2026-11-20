@@ -4,14 +4,17 @@ import SwiftUI
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
     @State private var classToForget: String?
+    @AppStorage(AppSettings.focusSubjectKey) private var focusSubject = true
 
     private var biggest: Int { max(1, model.classNames.map { model.count(for: $0) }.max() ?? 1) }
 
     var body: some View {
         NavigationStack {
             List {
-                ScreenHeader(title: "What I know", subtitle: model.classNames.isEmpty ? "Nothing yet. Let's fix that." : "\(model.classNames.count) thing\(model.classNames.count == 1 ? "" : "s") in my head. Swipe one to forget it.", color: Theme.mint)
+                ScreenHeader(title: "What I know", subtitle: (model.classNames.isEmpty ? "Nothing yet for \(model.backbone.displayName). Let's fix that." : "\(model.classNames.count) thing\(model.classNames.count == 1 ? "" : "s") in my head (\(model.backbone.displayName)). Swipe one to forget it."), color: Theme.mint)
                     .plainRow()
+
+                if model.needsReteaching(currentFocus: focusSubject) { ReteachBanner().plainRow() }
 
                 if model.classNames.isEmpty {
                     StickerCard(tint: Theme.sunflower, tilt: 1) {

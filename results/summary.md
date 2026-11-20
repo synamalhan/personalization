@@ -18,6 +18,16 @@ Episodes per cell: 100; 5-way.
 | flowers102 | DINOv2-small | nearest class mean | 5 | 0.998 [0.995, 1.000] | 0.998 [0.995, 1.000] |
 | flowers102 | DINOv2-small | nearest class mean | 10 | 0.999 [0.997, 1.000] | 0.999 [0.997, 1.000] |
 | flowers102 | DINOv2-small | nearest class mean | 20 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] |
+| flowers102 | DINOv3-small | logistic | 1 | 0.992 [0.987, 0.996] | 0.991 [0.987, 0.996] |
+| flowers102 | DINOv3-small | logistic | 3 | 0.998 [0.996, 0.999] | 0.998 [0.996, 0.999] |
+| flowers102 | DINOv3-small | logistic | 5 | 0.997 [0.995, 0.999] | 0.997 [0.995, 0.999] |
+| flowers102 | DINOv3-small | logistic | 10 | 0.999 [0.997, 1.000] | 0.999 [0.997, 1.000] |
+| flowers102 | DINOv3-small | logistic | 20 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] |
+| flowers102 | DINOv3-small | nearest class mean | 1 | 0.992 [0.988, 0.996] | 0.992 [0.987, 0.996] |
+| flowers102 | DINOv3-small | nearest class mean | 3 | 0.997 [0.995, 0.999] | 0.997 [0.995, 0.999] |
+| flowers102 | DINOv3-small | nearest class mean | 5 | 0.997 [0.995, 0.999] | 0.997 [0.995, 0.999] |
+| flowers102 | DINOv3-small | nearest class mean | 10 | 0.999 [0.998, 1.000] | 0.999 [0.998, 1.000] |
+| flowers102 | DINOv3-small | nearest class mean | 20 | 1.000 [0.999, 1.000] | 1.000 [0.999, 1.000] |
 | flowers102 | MobileNetV3 | logistic | 1 | 0.845 [0.824, 0.866] | 0.833 [0.809, 0.857] |
 | flowers102 | MobileNetV3 | logistic | 3 | 0.951 [0.939, 0.963] | 0.950 [0.938, 0.962] |
 | flowers102 | MobileNetV3 | logistic | 5 | 0.961 [0.952, 0.970] | 0.961 [0.951, 0.970] |
@@ -40,6 +50,11 @@ Episodes per cell: 100; 5-way.
 | flowers102 | DINOv2-small | 5 | +0.000 [-0.001, +0.002] | +0.000 [-0.001, +0.002] |
 | flowers102 | DINOv2-small | 10 | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] |
 | flowers102 | DINOv2-small | 20 | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] |
+| flowers102 | DINOv3-small | 1 | -0.000 [-0.001, +0.000] | -0.000 [-0.001, +0.000] |
+| flowers102 | DINOv3-small | 3 | +0.001 [-0.000, +0.002] | +0.001 [-0.000, +0.002] |
+| flowers102 | DINOv3-small | 5 | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] |
+| flowers102 | DINOv3-small | 10 | -0.000 [-0.001, +0.000] | -0.000 [-0.001, +0.000] |
+| flowers102 | DINOv3-small | 20 | +0.000 [-0.000, +0.001] | +0.000 [-0.000, +0.001] |
 | flowers102 | MobileNetV3 | 1 | +0.010 [+0.003, +0.018] | +0.011 [+0.003, +0.019] |
 | flowers102 | MobileNetV3 | 3 | +0.005 [-0.001, +0.010] | +0.005 [-0.001, +0.010] |
 | flowers102 | MobileNetV3 | 5 | +0.009 [+0.004, +0.014] | +0.009 [+0.004, +0.015] |
@@ -52,6 +67,8 @@ Episodes per cell: 100; 5-way.
 | --- | --- | --- | --- | --- | --- |
 | flowers102 | DINOv2-small | logistic | 0.999 [0.998, 0.999] | 0.049 [0.040, 0.059] | 0.000 [0.000, 0.000] |
 | flowers102 | DINOv2-small | nearest class mean | 0.998 [0.997, 0.999] | 0.998 [0.997, 0.999] | 0.000 [0.000, 0.000] |
+| flowers102 | DINOv3-small | logistic | 0.998 [0.997, 0.999] | 0.027 [0.019, 0.035] | 0.000 [0.000, 0.000] |
+| flowers102 | DINOv3-small | nearest class mean | 0.998 [0.997, 0.999] | 0.998 [0.997, 0.999] | 0.000 [0.000, 0.000] |
 | flowers102 | MobileNetV3 | logistic | 0.935 [0.927, 0.942] | 0.000 [0.000, 0.000] | 0.000 [0.000, 0.000] |
 | flowers102 | MobileNetV3 | nearest class mean | 0.924 [0.916, 0.933] | 0.924 [0.916, 0.933] | 0.000 [0.000, 0.000] |
 
@@ -64,6 +81,9 @@ Sequential = keep the old head and add the new class from its own examples only.
 | flowers102 | DINOv2-small | cosine threshold rule | 0.997 [0.996, 0.998] | n/a | n/a |
 | flowers102 | DINOv2-small | logistic | 0.997 [0.996, 0.997] | 0.119 [0.115, 0.123] | 0.999 [0.998, 0.999] |
 | flowers102 | DINOv2-small | nearest class mean | 0.994 [0.992, 0.995] | 0.035 [0.032, 0.038] | 0.999 [0.998, 0.999] |
+| flowers102 | DINOv3-small | cosine threshold rule | 0.997 [0.996, 0.998] | n/a | n/a |
+| flowers102 | DINOv3-small | logistic | 0.994 [0.993, 0.996] | 0.156 [0.152, 0.160] | 0.999 [0.998, 0.999] |
+| flowers102 | DINOv3-small | nearest class mean | 0.991 [0.988, 0.994] | 0.058 [0.054, 0.062] | 0.999 [0.998, 0.999] |
 | flowers102 | MobileNetV3 | cosine threshold rule | 0.859 [0.850, 0.868] | n/a | n/a |
 | flowers102 | MobileNetV3 | logistic | 0.891 [0.881, 0.900] | 0.396 [0.388, 0.404] | 0.931 [0.923, 0.939] |
 | flowers102 | MobileNetV3 | nearest class mean | 0.885 [0.876, 0.895] | 0.507 [0.497, 0.517] | 0.918 [0.910, 0.927] |
@@ -73,6 +93,7 @@ Operating point of the PersonalizeCore threshold rule (max cosine to class means
 | dataset | backbone | threshold | taught accepted | unseen rejected |
 | --- | --- | --- | --- | --- |
 | flowers102 | DINOv2-small | 0.624 | 0.956 [0.949, 0.962] | 0.984 [0.978, 0.990] |
+| flowers102 | DINOv3-small | 0.563 | 0.960 [0.953, 0.967] | 0.979 [0.970, 0.988] |
 | flowers102 | MobileNetV3 | 0.698 | 0.976 [0.972, 0.981] | 0.277 [0.252, 0.302] |
 
 **Worst case kept in:** lowest AUROC is MobileNetV3 / cosine threshold rule: 0.859 [0.850, 0.868]. MobileNetV3 nearest-class-mean ECE is large because its cosines are compressed and the softmax temperature (0.1) was not tuned.
@@ -85,6 +106,8 @@ Operating point of the PersonalizeCore threshold rule (max cosine to class means
 | MobileNetV3 | int8 | 0.9224 | 0.8303 | 2.889 |
 | DINOv2-small | fp16 | 0.9999 | 0.9998 | 0.157 |
 | DINOv2-small | int8 | 0.9992 | 0.9986 | 0.471 |
+| DINOv3-small | fp16 | 1.0000 | 1.0000 | 0.024 |
+| DINOv3-small | int8 | 0.9995 | 0.9991 | 0.074 |
 
 300 Flowers102 test images, coremltools 9.0. This measures embedding similarity only; few-shot accuracy with int8 embeddings and latency were **not** measured.
 
@@ -92,13 +115,13 @@ Operating point of the PersonalizeCore threshold rule (max cosine to class means
 
 | backbone | device / build | images | mean cosine | worst image | same predicted class (nearest mean / logistic) | max probability difference |
 | --- | --- | --- | --- | --- | --- | --- |
-| MobileNetV3 | arm64 / debug (simulator) | 20 | 0.9947 | 0.9855 | 100% / 100% | 0.029 |
+| MobileNetV3 | iPhone18,3 / debug (real iPhone) | 20 | 0.9945 | 0.9843 | 100% / 100% | 0.032 |
 
-Run in the iOS Simulator with CPU-only Core ML (the simulator returned all zeros with the default compute units), so this is **not** a phone result. The gap to the 0.999 target is most likely the resize method (Core Graphics vs Pillow). Not yet run on a real iPhone.
+Run on a real iPhone (Debug build, default Core ML compute units). The gap to the 0.999 target is most likely the resize method (Core Graphics vs Pillow); the simulator, run earlier with CPU-only Core ML, gave nearly the same number (0.9947), which points at preprocessing rather than the compute unit. Not yet run for the DINO models.
 
 ## Not available (not run yet)
 
 - Exp 3 (accuracy vs latency) and Exp 7 (on-device cost): need the Release benchmark CSV from a real iPhone (missing).
 - Exp 8 (real photos): needs `exp8_real.py` run on the app's exported vectors; none exist.
-- Gate check on a real iPhone (only the simulator was run).
+- Gate check for the DINOv2 and DINOv3 models on a real iPhone (only MobileNetV3 was run).
 - Pets dataset and the full Flowers102 run for every experiment above.

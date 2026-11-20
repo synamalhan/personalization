@@ -86,8 +86,20 @@ class DinoV2Embedder(nn.Module):
         return self.model.forward_features(x)["x_norm_clstoken"]
 
 
+class DinoV3Embedder(nn.Module):
+    """DINOv3 ViT-S/16: the layer-normed CLS token (384-d), via Hugging Face transformers."""
+
+    def __init__(self):
+        super().__init__()
+        from transformers import AutoModel  # imported here so the other backbones don't need transformers
+        self.model = AutoModel.from_pretrained(config.DINOV3_HF_MODEL)
+
+    def forward(self, x):
+        return self.model(pixel_values=x).pooler_output
+
+
 def build_backbone(name: str, device: torch.device) -> nn.Module:
-    model = MobileNetV3Embedder() if name == "mobilenetv3" else DinoV2Embedder()
+    model = {"mobilenetv3": MobileNetV3Embedder, "dinov2": DinoV2Embedder, "dinov3": DinoV3Embedder}[name]()
     return model.eval().to(device)
 
 

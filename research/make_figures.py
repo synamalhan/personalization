@@ -21,8 +21,8 @@ from common import REPO_ROOT, mean_ci
 RESULTS = REPO_ROOT / config.RESULTS_DIR
 FIGS = RESULTS / "figures"
 # Validated categorical slots (blue, orange): color = backbone everywhere; line style / hatch = head.
-BACKBONE_COLOR = {"mobilenetv3": "#2a78d6", "dinov2": "#eb6834"}
-BACKBONE_NAME = {"mobilenetv3": "MobileNetV3", "dinov2": "DINOv2-small"}
+BACKBONE_COLOR = {"mobilenetv3": "#2a78d6", "dinov2": "#eb6834", "dinov3": "#1baf7a"}
+BACKBONE_NAME = {"mobilenetv3": "MobileNetV3", "dinov2": "DINOv2-small", "dinov3": "DINOv3-small"}
 HEAD_STYLE = {"nearest_class_mean": "-", "logistic": "--"}
 HEAD_NAME = {"nearest_class_mean": "nearest class mean", "logistic": "logistic"}
 INK, MUTED, SURFACE = "#0b0b0b", "#52514e", "#fcfcfb"
@@ -237,19 +237,24 @@ def write_summary(exp1, exp2, exp5, exp6, conv, suffix, have_latency):
               "| --- | --- | --- | --- | --- | --- | --- |"]
         for g in gates:
             h = g["heads"]
-            L.append(f"| {BACKBONE_NAME[g['backbone']]} | {g['device']} / {g['build']} (simulator) | {g['n_images']} | {g['mean_cosine']:.4f} | "
+            real = g["device"].startswith("iPhone")
+            L.append(f"| {BACKBONE_NAME[g['backbone']]} | {g['device']} / {g['build']} ({'real iPhone' if real else 'simulator'}) | {g['n_images']} | {g['mean_cosine']:.4f} | "
                      f"{g['min_cosine']:.4f} | {h['nearest_class_mean']['same_class']:.0%} / {h['logistic']['same_class']:.0%} | "
                      f"{max(h['nearest_class_mean']['max_prob_diff'], h['logistic']['max_prob_diff']):.3f} |")
-        L += ["", "Run in the iOS Simulator with CPU-only Core ML (the simulator returned all zeros with the default compute units), "
-              "so this is **not** a phone result. The gap to the 0.999 target is most likely the resize method (Core Graphics vs Pillow). "
-              "Not yet run on a real iPhone.", ""]
+        if any(g["device"].startswith("iPhone") for g in gates):
+            L += ["", "Run on a real iPhone (Debug build, default Core ML compute units). The gap to the 0.999 target is most likely the "
+                  "resize method (Core Graphics vs Pillow); the simulator, run earlier with CPU-only Core ML, gave nearly the same number "
+                  "(0.9947), which points at preprocessing rather than the compute unit. Not yet run for the DINO models.", ""]
+        else:
+            L += ["", "Run in the iOS Simulator with CPU-only Core ML (the simulator returned all zeros with the default compute units), "
+                  "so this is **not** a phone result. Not yet run on a real iPhone.", ""]
     else:
         L += ["not available", ""]
 
     L += ["## Not available (not run yet)", "",
           "- Exp 3 (accuracy vs latency) and Exp 7 (on-device cost): need the Release benchmark CSV from a real iPhone" + (" (present)" if have_latency else " (missing)") + ".",
           "- Exp 8 (real photos): needs `exp8_real.py` run on the app's exported vectors; none exist.",
-          "- Gate check on a real iPhone (only the simulator was run).",
+          "- Gate check for the DINOv2 and DINOv3 models on a real iPhone (only MobileNetV3 was run).",
           "- Pets dataset and the full Flowers102 run for every experiment above.", ""]
     (RESULTS / "summary.md").write_text("\n".join(L))
 

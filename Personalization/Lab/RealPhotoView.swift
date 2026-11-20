@@ -65,7 +65,7 @@ struct RealPhotoView: View {
         var added = 0
         for picked in pickerItems {
             guard let data = try? await picked.loadTransferable(type: Data.self), let image = ImageLoading.image(from: data),
-                  let r = try? await EmbeddingService.shared.embed(image) else { continue }
+                  let r = try? await EmbeddingService.shared.embed(image, focusSubject: false) else { continue }
             items.append(Item(class: name, day: dayLabel, embedding: r.vector))
             added += 1
         }

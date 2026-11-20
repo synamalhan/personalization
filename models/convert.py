@@ -20,7 +20,7 @@ import torch
 from backbones import build_embedder
 
 OUT_DIR = Path(__file__).resolve().parent
-NAMES = {"mobilenetv3": "MobileNetV3Large", "dinov2": "DINOv2Small"}
+NAMES = {"mobilenetv3": "MobileNetV3Large", "dinov2": "DINOv2Small", "dinov3": "DINOv3Small"}
 
 
 def main():
@@ -33,13 +33,18 @@ def main():
     example = torch.rand(1, 3, 224, 224) * 255
     traced = torch.jit.trace(model, example)
 
+    # DINOv3 loses accuracy when its layer-norms run in float16 (cosine 0.69 vs PyTorch); keeping just
+    # those ops in float32 and everything else in float16 restores it (cosine 1.00000, checked on noise images).
+    precision = ct.precision.FLOAT16
+    if args.backbone == "dinov3":
+        precision = ct.transform.FP16ComputePrecision(op_selector=lambda op: op.op_type != "layer_norm")
     fp16 = ct.convert(
         traced,
         inputs=[ct.ImageType(name="image", shape=example.shape, scale=1.0,
                              color_layout=ct.colorlayout.RGB)],
         outputs=[ct.TensorType(name="embedding")],
         convert_to="mlprogram",
-        compute_precision=ct.precision.FLOAT16,
+        compute_precision=precision,
         minimum_deployment_target=ct.target.iOS17,
     )
     fp16_path = OUT_DIR / f"{NAMES[args.backbone]}_fp16.mlpackage"

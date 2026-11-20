@@ -1,5 +1,7 @@
 import AVFoundation
+import CoreImage
 import SwiftUI
+import UIKit
 
 /// Runs the camera and keeps only the newest frame. `nonisolated` because the frame callback
 /// arrives on a background queue, not the main thread.
@@ -9,6 +11,7 @@ nonisolated final class CameraController: NSObject, AVCaptureVideoDataOutputSamp
     private let lock = NSLock()
     private var newest: CVPixelBuffer?
     private var configured = false
+    private let ciContext = CIContext()
 
     enum Availability { case ready, denied, unavailable }
 
@@ -29,7 +32,9 @@ nonisolated final class CameraController: NSObject, AVCaptureVideoDataOutputSamp
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else { return false }
         session.beginConfiguration()
-        session.sessionPreset = .high
+        // 4:3 like the photos used for teaching (the default 16:9 preset gets cropped much tighter),
+        // and small enough to be cheap: the model only needs a 256 px short side.
+        session.sessionPreset = .vga640x480
         guard session.canAddInput(input) else { session.commitConfiguration(); return false }
         session.addInput(input)
         let output = AVCaptureVideoDataOutput()
@@ -48,6 +53,15 @@ nonisolated final class CameraController: NSObject, AVCaptureVideoDataOutputSamp
 
     func start() { queue.async { if !self.session.isRunning { self.session.startRunning() } } }
     func stop() { queue.async { if self.session.isRunning { self.session.stopRunning() } } }
+
+    /// Copies the newest frame into a normal image right away. (The camera reuses its buffers, so a frame
+    /// that is kept for later must be copied out now.) Frames are upright because of the 90 degree rotation above.
+    func snapshot() -> UIImage? {
+        guard let buffer = latestFrame() else { return nil }
+        let image = CIImage(cvPixelBuffer: buffer)
+        guard let cg = ciContext.createCGImage(image, from: image.extent) else { return nil }
+        return UIImage(cgImage: cg)
+    }
 
     func latestFrame() -> CVPixelBuffer? {
         lock.lock(); defer { lock.unlock() }

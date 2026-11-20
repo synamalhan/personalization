@@ -3,10 +3,12 @@ import CoreML
 import ImageIO
 import UIKit
 
-/// One embedding and how long it took.
+/// One embedding, how long it took, and the exact square image the model looked at
+/// (after any background removal, resize and crop), so the app can show it.
 struct EmbeddingResult: Sendable {
     let vector: [Float]
     let seconds: Double
+    var seen: UIImage? = nil
 }
 
 enum EmbeddingError: LocalizedError {
@@ -29,13 +31,33 @@ enum EmbeddingError: LocalizedError {
 
 /// The feature extractors the app can use. Only those whose compiled model is bundled are installed.
 nonisolated enum Backbone: String, CaseIterable, Identifiable {
-    case mobilenetv3
+    case dinov3
     case dinov2
+    case mobilenetv3
 
     var id: String { rawValue }
-    var displayName: String { self == .mobilenetv3 ? "MobileNetV3-Large" : "DINOv2-small" }
+    var displayName: String {
+        switch self {
+        case .dinov3: "DINOv3-small"
+        case .dinov2: "DINOv2-small"
+        case .mobilenetv3: "MobileNetV3-Large"
+        }
+    }
     /// Name of the Core ML model in the app bundle (Xcode compiles .mlpackage into .mlmodelc).
-    var resourceName: String { self == .mobilenetv3 ? "MobileNetV3Large_fp16" : "DINOv2Small_fp16" }
+    var resourceName: String {
+        switch self {
+        case .dinov3: "DINOv3Small_fp16"
+        case .dinov2: "DINOv2Small_fp16"
+        case .mobilenetv3: "MobileNetV3Large_fp16"
+        }
+    }
+    var blurb: String {
+        switch self {
+        case .dinov3: "Newest from Meta, sharp on fine detail"
+        case .dinov2: "Sharp, learns from very few photos"
+        case .mobilenetv3: "Smaller and a little faster"
+        }
+    }
     var isInstalled: Bool { Bundle.main.url(forResource: resourceName, withExtension: "mlmodelc") != nil }
     static var installed: [Backbone] { allCases.filter(\.isInstalled) }
 }
@@ -108,10 +130,14 @@ actor EmbeddingService {
     private var models: [Backbone: MLModel] = [:]
     private let ciContext = CIContext()
 
-    func embed(_ image: UIImage, backbone: Backbone = Backbone(rawValue: AppSettings.backboneRaw) ?? .mobilenetv3) throws -> EmbeddingResult {
+    /// `focusSubject` removes the background first (see `SubjectCutout`). The gate check and benchmark
+    /// turn it off so they stay comparable with the laptop pipeline, which has no cutout.
+    func embed(_ image: UIImage, backbone: Backbone = Backbone(rawValue: AppSettings.backboneRaw) ?? .mobilenetv3,
+               focusSubject: Bool = AppSettings.focusSubject) throws -> EmbeddingResult {
         let start = ContinuousClock.now
         let model = try loadModel(backbone)
-        let cropped = Preprocessing.croppedImage(from: image)
+        let source = focusSubject ? (SubjectCutout.isolate(image, context: ciContext) ?? image) : image
+        let cropped = Preprocessing.croppedImage(from: source)
         // Catch a failed redraw (an all-black result) before it reaches the model.
         if let cg = cropped.cgImage, Preprocessing.isBlank(cg) { throw EmbeddingError.blankImage }
         guard let cgImage = cropped.cgImage,
@@ -123,14 +149,15 @@ actor EmbeddingService {
         guard let array = output.featureValue(for: "embedding")?.multiArrayValue else { throw EmbeddingError.badOutput }
         let vector = (0..<array.count).map { array[$0].floatValue }
         if vector.allSatisfy({ $0 == 0 }) { throw EmbeddingError.emptyOutput }
-        return EmbeddingResult(vector: vector, seconds: ContinuousClock.now - start)
+        return EmbeddingResult(vector: vector, seconds: (ContinuousClock.now - start).seconds, seen: cropped)
     }
 
     /// Embeds a camera frame (upright BGRA pixel buffer).
-    func embed(frame: CVPixelBuffer, backbone: Backbone = Backbone(rawValue: AppSettings.backboneRaw) ?? .mobilenetv3) throws -> EmbeddingResult {
+    func embed(frame: CVPixelBuffer, backbone: Backbone = Backbone(rawValue: AppSettings.backboneRaw) ?? .mobilenetv3,
+               focusSubject: Bool = AppSettings.focusSubject) throws -> EmbeddingResult {
         guard let cg = ciContext.createCGImage(CIImage(cvPixelBuffer: frame), from: CIImage(cvPixelBuffer: frame).extent)
         else { throw EmbeddingError.badImage }
-        return try embed(UIImage(cgImage: cg), backbone: backbone)
+        return try embed(UIImage(cgImage: cg), backbone: backbone, focusSubject: focusSubject)
     }
 
     private func loadModel(_ backbone: Backbone) throws -> MLModel {
@@ -153,10 +180,4 @@ actor EmbeddingService {
 extension Duration {
     /// Whole duration as seconds.
     nonisolated var seconds: Double { Double(components.seconds) + Double(components.attoseconds) / 1e18 }
-}
-
-extension EmbeddingResult {
-    nonisolated init(vector: [Float], seconds: Duration) {
-        self.init(vector: vector, seconds: seconds.seconds)
-    }
 }

@@ -1,0 +1,30 @@
+{
+  "backbone": "dinov3",
+  "coremltools": "9.0",
+  "torch": "2.7.0",
+  "n_images": 300,
+  "models": {
+    "fp16": {
+      "mean_cosine": 0.9999979734420776,
+      "min_cosine": 0.9999727010726929,
+      "max_abs_diff": 0.023637086153030396,
+      "nan": 0
+    },
+    "int8": {
+      "mean_cosine": 0.9994848370552063,
+      "min_cosine": 0.9991236925125122,
+      "max_abs_diff": 0.0741780549287796,
+      "nan": 0
+    }
+  },
+  "expected_input": {
+    "name": "image",
+    "width": 224,
+    "height": 224,
+    "color_space": "RGB",
+    "pixel_range": "0-255 (no scaling by the caller)",
+    "normalization": "inside the model: (pixel/255 - mean) / std with ImageNet mean/std",
+    "caller_must": "resize shorter side to 256 (bilinear), center crop 224x224, RGB order",
+    "output": "embedding"
+  }
+}

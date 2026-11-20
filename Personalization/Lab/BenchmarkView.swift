@@ -61,7 +61,7 @@ struct BenchmarkView: View {
         for backbone in Backbone.installed {
             progress = "Embedding with \(backbone.displayName)…"
             for i in 0..<(Self.warmups + Self.repeats) {
-                guard let r = try? await EmbeddingService.shared.embed(image, backbone: backbone) else { continue }
+                guard let r = try? await EmbeddingService.shared.embed(image, backbone: backbone, focusSubject: false) else { continue }
                 if i >= Self.warmups { rows.append(Row(metric: "embed_\(backbone.rawValue)", iteration: i - Self.warmups, seconds: r.seconds)) }
             }
         }

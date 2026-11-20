@@ -12,11 +12,13 @@ struct TeachView: View {
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var capturedPhotos: [UIImage] = []
     @State private var showCamera = false
+    @State private var showLiveCapture = false
     @State private var isWorking = false
     @State private var progress = ""
     @State private var errorMessage: String?
     @State private var summary: String?
     @State private var lastTiming: (photos: Int, embed: Double, fit: Double)?
+    @State private var seenThumbs: [UIImage] = []
 
     private static let minPhotos = 3
     private static let maxPhotos = 20
@@ -53,6 +55,11 @@ struct TeachView: View {
                                 Label("Choose from my photos", systemImage: "photo.on.rectangle.angled")
                             }
                             .buttonStyle(StickerButtonStyle(color: Theme.sky))
+                            Button { showLiveCapture = true } label: { Label("Teach with the live camera", systemImage: "video.fill") }
+                                .buttonStyle(StickerButtonStyle(color: Theme.mint))
+                                .disabled(photoCount >= Self.maxPhotos)
+                            Text("Best for recognizing live: I'll learn from the same kind of frames I'll see later.")
+                                .font(.caption).foregroundStyle(Theme.ink.opacity(0.65))
                             if UIImagePickerController.isSourceTypeAvailable(.camera) {
                                 Button { showCamera = true } label: { Label("Take a photo now", systemImage: "camera.fill") }
                                     .buttonStyle(StickerButtonStyle(color: Theme.bubblegum))
@@ -93,6 +100,10 @@ struct TeachView: View {
                                               : "You've chosen to keep photos, so a copy is also saved inside this app's own folder. You can change this in Settings.")
                             Text("Nothing is ever uploaded. The app has no internet code at all.")
                         }
+                        Explainer(title: "Why teach with the live camera?", color: Theme.mint, icon: "video.fill") {
+                            Text("Photos from your library are sharp, well lit stills. Frames from the live camera are smaller, a touch blurrier, and lit differently. If I only learn from stills, the live view can look unfamiliar.")
+                            Text("Teaching from live frames means I practice on exactly what I'll be shown later. Slowly turn the thing and move it closer and farther while I grab the frames, so I see it from many sides.")
+                        }
                         Explainer(title: "Why 3 to 20 photos?", color: Theme.sky, icon: "number.circle.fill") {
                             Text("One photo can be a fluke: a weird angle, bad light. Three or more lets me average out the quirks and find what stays the same.")
                             Text("After about 10 photos you mostly get diminishing returns. In my tests on flowers, going from 1 to 5 photos helped a lot, while 10 to 20 changed little. Photos from different angles and lighting beat twenty near-identical shots.")
@@ -112,6 +123,11 @@ struct TeachView: View {
             }
             .background(ScreenBackground(color: Theme.tomato))
             .toolbar(.hidden, for: .navigationBar)
+            .fullScreenCover(isPresented: $showLiveCapture) {
+                LiveCaptureView(remaining: Self.maxPhotos - photoCount) { frames in
+                    capturedPhotos.append(contentsOf: frames)
+                }
+            }
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in
                     if let image { capturedPhotos.append(image) }
@@ -153,6 +169,24 @@ struct TeachView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Got it!", systemImage: "party.popper.fill").font(.title3.weight(.heavy))
                 Text(text).font(.callout)
+                if !seenThumbs.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("This is what I looked at").font(.caption.weight(.heavy)).opacity(0.65)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(seenThumbs.indices, id: \.self) { i in
+                                    Image(uiImage: seenThumbs[i]).resizable().scaledToFill()
+                                        .frame(width: 64, height: 64)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.ink, lineWidth: 2))
+                                }
+                            }
+                            .padding(2)
+                        }
+                        Text("If a square shows the wrong thing (your hand, the table…), retake that photo with the subject clearer.")
+                            .font(.caption2).opacity(0.6)
+                    }
+                }
                 if let timing = lastTiming {
                     HStack(spacing: 10) {
                         StatChip(label: "photos", value: "\(timing.photos)", color: Theme.sunflower)
@@ -170,6 +204,7 @@ struct TeachView: View {
         errorMessage = nil
         summary = nil
         lastTiming = nil
+        seenThumbs = []
         defer { isWorking = false }
         let name = trimmedName
         let keep = !deletePhotos
@@ -180,8 +215,9 @@ struct TeachView: View {
 
         func embedOne(_ image: UIImage, jpeg: Data?) async throws {
             progress = "Embedding photo \(vectors.count + 1) of \(items.count + captured.count)…"
-            let result = try await EmbeddingService.shared.embed(image)
+            let result = try await EmbeddingService.shared.embed(image, backbone: model.backbone)
             vectors.append(result.vector)
+            if let seen = result.seen { seenThumbs.append(seen) }
             embedSeconds += result.seconds
             if keep, let data = jpeg ?? image.jpegData(compressionQuality: 0.9) { Self.keepPhoto(data, className: name) }
         }

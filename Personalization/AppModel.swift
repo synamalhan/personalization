@@ -18,32 +18,76 @@ enum AppError: LocalizedError {
 /// Owns the one Learner and keeps it saved. `@Observable` makes SwiftUI views that read its
 /// properties redraw automatically when those properties change (no publishers or objectWillChange).
 /// It is passed down with `.environment(model)` and read with `@Environment(AppModel.self)`.
+///
+/// Each image model (backbone) has its own saved library: their embeddings have different sizes and
+/// meanings, so they can never be mixed. Switching the backbone in Settings switches libraries.
 @Observable
 final class AppModel {
     private(set) var learner: Learner
-    /// True while a teach, delete or head change is running; blocks overlapping requests.
+    /// The image model whose library is currently loaded.
+    private(set) var backbone: Backbone
+    /// True while a teach, delete or settings change is running; blocks overlapping requests.
     private(set) var isBusy = false
+    /// Whether the background was removed when the saved classes were taught (nil if nothing is taught).
+    /// If this differs from the current Settings switch, old and new numbers are not comparable.
+    private(set) var libraryFocusSubject: Bool?
 
-    private let storeURL: URL
+    private let directory: URL
 
     static var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
-    static var defaultStoreURL: URL { documentsURL.appendingPathComponent("embeddings.json") }
     static var photosURL: URL { documentsURL.appendingPathComponent("Photos") }
 
-    init(storeURL: URL = AppModel.defaultStoreURL) {
-        self.storeURL = storeURL
-        let store = Self.loadStore(at: storeURL)
-        var learner = Learner(store: store,
-                              headKind: HeadKind(rawValue: AppSettings.headKindRaw) ?? .nearestClassMean)
+    init(directory: URL = AppModel.documentsURL) {
+        self.directory = directory
+        Self.migrateLegacyLibrary(in: directory)
+        let backbone = Self.preferredBackbone()
+        self.backbone = backbone
+        var learner = Learner(store: Self.loadStore(at: Self.storeURL(in: directory, for: backbone)),
+                              headKind: HeadKind(rawValue: AppSettings.headKindRaw) ?? .logistic)
         learner.threshold = AppSettings.threshold
         self.learner = learner
+        self.libraryFocusSubject = Self.readFocus(for: backbone)
     }
 
-    /// Loads the saved store. If the file exists but cannot be read, it is moved aside (not overwritten)
+    // MARK: - Libraries (one per image model)
+
+    nonisolated static func storeURL(in directory: URL, for backbone: Backbone) -> URL {
+        directory.appendingPathComponent("embeddings_\(backbone.rawValue).json")
+    }
+
+    /// The backbone chosen in Settings, if it is installed; otherwise the first installed one.
+    nonisolated static func preferredBackbone() -> Backbone {
+        let installed = Backbone.installed
+        if let chosen = Backbone(rawValue: AppSettings.backboneRaw), installed.contains(chosen) { return chosen }
+        return installed.first ?? .mobilenetv3
+    }
+
+    /// Before there were several image models the library was one file, always from MobileNetV3. Move it over.
+    private static func migrateLegacyLibrary(in directory: URL) {
+        let fm = FileManager.default
+        let legacy = directory.appendingPathComponent("embeddings.json")
+        let target = storeURL(in: directory, for: .mobilenetv3)
+        if fm.fileExists(atPath: legacy.path), !fm.fileExists(atPath: target.path) {
+            try? fm.moveItem(at: legacy, to: target)
+        }
+        let defaults = UserDefaults.standard
+        let newKey = "\(AppSettings.libraryFocusKey).\(Backbone.mobilenetv3.rawValue)"
+        if let old = defaults.object(forKey: AppSettings.libraryFocusKey) as? Bool, defaults.object(forKey: newKey) == nil {
+            defaults.set(old, forKey: newKey)
+            defaults.removeObject(forKey: AppSettings.libraryFocusKey)
+        }
+    }
+
+    private static func focusKey(for backbone: Backbone) -> String { "\(AppSettings.libraryFocusKey).\(backbone.rawValue)" }
+    private static func readFocus(for backbone: Backbone) -> Bool? {
+        UserDefaults.standard.object(forKey: focusKey(for: backbone)) as? Bool
+    }
+
+    /// Loads a saved library. If the file exists but cannot be read, it is moved aside (not overwritten)
     /// so the next save cannot destroy data that might still be recoverable.
-    private static func loadStore(at url: URL) -> EmbeddingStore {
+    nonisolated private static func loadStore(at url: URL) -> EmbeddingStore {
         guard FileManager.default.fileExists(atPath: url.path) else { return EmbeddingStore() }
         do {
             return try EmbeddingStore.load(from: url)
@@ -69,7 +113,14 @@ final class AppModel {
 
     var classNames: [String] { learner.classNames }
 
+    /// True when classes were taught with a different "focus on the subject" setting than the one now selected.
+    func needsReteaching(currentFocus: Bool) -> Bool {
+        !classNames.isEmpty && (libraryFocusSubject ?? false) != currentFocus
+    }
+
     func count(for className: String) -> Int { learner.count(for: className) }
+
+    // MARK: - Teaching
 
     /// Adds the embeddings and refits. The refit runs off the main thread.
     /// `Task.detached` runs work on a background thread; the Learner is a value type, so we
@@ -88,6 +139,8 @@ final class AppModel {
                 return copy
             }.value
         }
+        libraryFocusSubject = AppSettings.focusSubject
+        UserDefaults.standard.set(AppSettings.focusSubject, forKey: Self.focusKey(for: backbone))
         save()
     }
 
@@ -104,22 +157,41 @@ final class AppModel {
             }.value
         }
         try? FileManager.default.removeItem(at: Self.photoDirectory(for: className))
+        if learner.classNames.isEmpty {
+            libraryFocusSubject = nil
+            UserDefaults.standard.removeObject(forKey: Self.focusKey(for: backbone))
+        }
         save()
     }
 
-    /// Re-reads the Settings values (threshold is instant; changing the head refits in the background).
+    /// Re-reads the Settings values. The threshold is instant; changing the head refits, and changing the
+    /// image model loads that model's own library (both in the background).
     func applySettings() async {
         learner.threshold = AppSettings.threshold
-        let kind = HeadKind(rawValue: AppSettings.headKindRaw) ?? .nearestClassMean
-        guard kind != learner.headKind, !isBusy else { return }
+        let kind = HeadKind(rawValue: AppSettings.headKindRaw) ?? .logistic
+        let wanted = Self.preferredBackbone()
+        guard kind != learner.headKind || wanted != backbone, !isBusy else { return }
         isBusy = true
         defer { isBusy = false }
-        let snapshot = learner
-        learner = await Task.detached(priority: .userInitiated) {
-            var copy = snapshot
-            copy.headKind = kind
-            return copy
-        }.value
+
+        if wanted != backbone {
+            let url = Self.storeURL(in: directory, for: wanted)
+            let threshold = AppSettings.threshold
+            learner = await Task.detached(priority: .userInitiated) {
+                var fresh = Learner(store: Self.loadStore(at: url), headKind: kind)
+                fresh.threshold = threshold
+                return fresh
+            }.value
+            backbone = wanted
+            libraryFocusSubject = Self.readFocus(for: wanted)
+        } else {
+            let snapshot = learner
+            learner = await Task.detached(priority: .userInitiated) {
+                var copy = snapshot
+                copy.headKind = kind
+                return copy
+            }.value
+        }
     }
 
     func predict(_ embedding: [Float]) -> LearnerPrediction {
@@ -129,7 +201,8 @@ final class AppModel {
     // MARK: - Persistence
 
     private func save() {
-        do { try learner.store.save(to: storeURL) } catch { print("Could not save embeddings: \(error)") }
+        let url = Self.storeURL(in: directory, for: backbone)
+        do { try learner.store.save(to: url) } catch { print("Could not save embeddings: \(error)") }
     }
 
     // MARK: - Optional photo keeping (Settings switch)

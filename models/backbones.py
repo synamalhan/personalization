@@ -41,6 +41,15 @@ class _DinoCLS(nn.Module):
         return self.model.forward_features(x)["x_norm_clstoken"]
 
 
+class _DinoV3CLS(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x):
+        return self.model(pixel_values=x).pooler_output  # layer-normed CLS token
+
+
 def build_embedder(name: str) -> nn.Module:
     """The normalized-input embedder in eval mode (fp32)."""
     if name == "mobilenetv3":
@@ -51,4 +60,7 @@ def build_embedder(name: str) -> nn.Module:
     if name == "dinov2":
         net = torch.hub.load(config.DINOV2_HUB_REPO, config.DINOV2_HUB_MODEL)
         return Normalized(_DinoCLS(net)).eval()
+    if name == "dinov3":
+        from transformers import AutoModel
+        return Normalized(_DinoV3CLS(AutoModel.from_pretrained(config.DINOV3_HF_MODEL))).eval()
     raise ValueError(name)

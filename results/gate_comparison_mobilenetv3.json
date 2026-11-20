@@ -1,18 +1,18 @@
 {
   "backbone": "mobilenetv3",
-  "device": "arm64",
+  "device": "iPhone18,3",
   "build": "debug",
   "n_images": 20,
-  "mean_cosine": 0.994651198387146,
-  "min_cosine": 0.9854942560195923,
+  "mean_cosine": 0.9944816827774048,
+  "min_cosine": 0.9842656850814819,
   "heads": {
     "nearest_class_mean": {
       "same_class": 1.0,
-      "max_prob_diff": 0.028728187084197998
+      "max_prob_diff": 0.028165996074676514
     },
     "logistic": {
       "same_class": 1.0,
-      "max_prob_diff": 0.021664202213287354
+      "max_prob_diff": 0.0321429967880249
     }
   }
 }

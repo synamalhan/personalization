@@ -57,7 +57,7 @@ struct GateCheckView: View {
             for file in files {
                 guard let image = UIImage(contentsOfFile: file.path) else { continue }
                 do {
-                    let r = try await EmbeddingService.shared.embed(image, backbone: backbone)
+                    let r = try await EmbeddingService.shared.embed(image, backbone: backbone, focusSubject: false)
                     items.append(.init(file: file.lastPathComponent, embedding: r.vector))
                     total += r.seconds
                 } catch { status = "Failed on \(file.lastPathComponent): \(error.localizedDescription)"; return }

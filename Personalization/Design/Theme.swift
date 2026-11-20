@@ -240,3 +240,18 @@ struct ChoiceCard: View {
         .animation(.snappy(duration: 0.15), value: isSelected)
     }
 }
+
+/// Shown when the saved classes were taught with a different "focus on the subject" setting than the current one.
+struct ReteachBanner: View {
+    var body: some View {
+        StickerCard(tint: Theme.sunflower, tilt: 0.6) {
+            Label {
+                Text("I look at photos differently now than when you taught some of these. For the best results, forget them and teach them again.")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.ink)
+            } icon: {
+                Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(Theme.tomato)
+            }
+        }
+    }
+}
